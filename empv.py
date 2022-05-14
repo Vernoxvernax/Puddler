@@ -8,38 +8,40 @@ import os.path
 
 def ask_user_login():
     global user_login, username
-    if not os.path.isfile("config.json"):
-        username = input("Please enter your Emby username: ")
-        password = input("Please enter your Emby password: ")
+    if not os.path.isfile("{}.config.json".format(media_server_name.lower())):
+        username = input("Please enter your {} username: ").format(media_server_name)
+        password = input("Please enter your {} password: ").format(media_server_name)
         if " " in username or " " in password:
             print("Make sure to not include any spaces!")
             exit()
-        with open("config.json", "w") as output:
+        with open("{}.config.json".format(media_server_name.lower()), "w") as output:
             stuff = {
                 "username": username,
                 "password": password
             }
             json.dump(stuff, output)
     else:
-        with open("config.json", "r") as config:
+        with open("{}.config.json".format(media_server_name.lower()), "r") as config:
             data = json.load(config)
             try:
                 username = data["username"]
                 password = data["password"]
             except:
                 print("Reading the config file failed.\nPlease remove it and restart the script.")
-            print("Using the following Emby account: {}".format(username))
+            print("Using the following {} account: {}".format(media_server_name, username))
     user_login = {
         "username": username,
         "pw": password
     }
+    if media_server_name == "Jellyfin":
+        user_login = json.dumps(user_login).encode("utf-8")
 
 
 def choosing_media(user_id, basic_header):
     search = input("Please enter a search term. (or none at all)\n: ")
     items = requests.get(
-        "{}/emby/Items?SearchTerm={}&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie".format(
-            ipaddress, search, user_id), headers=basic_header)
+        "{}{}/Items?SearchTerm={}&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie".format(
+            ipaddress, media_server, search, user_id), headers=basic_header)
     item_list = []
     item_list_ids = []
     item_list_type = []
@@ -92,8 +94,9 @@ def run_mpv(stream_url):
 
 def streaming(media_name, media_id, media_type, basic_header, user_id):
     def playlist(starting_pos):
-        stream_url = ("{}/emby/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-            ipaddress, episode_ids[starting_pos], basic_header.get("X-Emby-Token")))
+        stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
+            ipaddress, media_server, episode_ids[starting_pos],
+            basic_header.get("X-{}-Token".format(media_server_name))))
         run_mpv(stream_url)
         if not starting_pos < len(episode_names):
             print("Ok. bye :)")
@@ -106,21 +109,22 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
             starting_pos = starting_pos + index
             print("Starting playback of {}.".format(episode_names[starting_pos]))
             stream_url = (
-                "{}/emby/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-                    ipaddress, episode_ids[starting_pos], basic_header.get("X-Emby-Token")))
+                "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
+                    ipaddress, media_server, episode_ids[starting_pos],
+                    basic_header.get("X-{}-Token".format(media_server_name))))
             run_mpv(stream_url)
             if not (starting_pos + 1) < len(episode_names):
                 next_ep = False
 
     if media_type == "Movie":
         print("Attempting to stream {}.".format(media_name))
-        stream_url = ("{}/emby/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-            ipaddress, media_id, basic_header.get("X-Emby-Token")))
+        stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
+            ipaddress, media_server, media_id, basic_header.get("X-{}-Token".format(media_server_name))))
         run_mpv(stream_url)
     elif media_type == "Series":
         print("\n{}:".format(media_name))
-        series = requests.get("{}/emby/Users/{}/Items?ParentId={}".format(
-            ipaddress, user_id, media_id), headers=basic_header).json()
+        series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
+            ipaddress, media_server, user_id, media_id), headers=basic_header).json()
         season_names = []
         season_ids = []
         for x in series["Items"]:
@@ -131,8 +135,8 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
         episode_states = []
         for y in season_ids:
             print("   {}".format(season_names[season_ids.index(y)]))
-            episodes = requests.get("{}/emby/Users/{}/Items?ParentId={}".format(
-                ipaddress, user_id, y), headers=basic_header).json()
+            episodes = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
+                ipaddress, media_server, user_id, y), headers=basic_header).json()
             for z in episodes["Items"]:
                 episode_names.append(z["Name"])
                 episode_ids.append(z["Id"])
@@ -151,14 +155,24 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
             print("Are you stupid?!")
             exit()
         playlist(starting_pos)
-    green_print("All playblack finished.\nContinue? [Enter]")
+    green_print("All playblack finished.\nContinue? [Enter]\n")
     media_name, media_id, media_type = choosing_media(user_id, basic_header)
     streaming(media_name, media_id, media_type, basic_header, user_id)
 
 
 def main():
-    global ipaddress
-    print("Searching for local Emby-Servers...\n")
+    global ipaddress, media_server, media_server_name
+    media_server = input("What kind of server do you want to stream from?\n [1] Emby\n [2] Jellyfin\n: ")
+    if media_server == "1":
+        media_server = "/emby"
+        media_server_name = "Emby"
+    elif media_server == "2":
+        media_server = ""
+        media_server_name = "Jellyfin"
+    else:
+        print("Input incorrect.")
+        exit()
+    print("Searching for local Media-Servers...\n")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, True)
     sock.settimeout(2.0)
@@ -171,14 +185,15 @@ def main():
         ipaddress = data['Address']
     except socket.timeout:
         ipaddress = input(
-            'Couldn\'t find any Emby-Server.\nIf your server is dockerized make sure to make it uses the host network.\n'
+            'Couldn\'t find any Media-Server.\nIf your server is dockerized make sure to make it uses the host '
+            'network.\n '
             'Or just specify the IP-Address manually (don\'t forget the ports)\n: ')
         if not "http" in ipaddress:
             ipaddress = "http://{}".format(ipaddress)
-    print("Could the Emby-Server at the following address be the correct one?\n \"{}\"".format(ipaddress))
+    print("Could the Media-Server at the following address be the correct one?\n \"{}\"".format(ipaddress))
     answer = input("(Y)es / (N)o\n: ")
     if answer in "yY":
-        print("Great.\n")
+        print("Great.")
     elif answer in "nN":
         print("Awww.")
         ipaddress = input("Go ahead smart ass (http://420.69.669.666:8096)\n: ")
@@ -188,17 +203,27 @@ def main():
         print("Ok.")
         exit()
     ask_user_login()
-    auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="eMPV", DeviceId="lol", '
-                                    'Version="1", Token="L"'}
-    authorization = requests.post("{}/emby/Users/AuthenticateByName".format(ipaddress), data=user_login,
+    if media_server_name == "Emby":
+        auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="eMPV", DeviceId="lol", '
+                                        'Version="1", Token="L"'}
+    else:
+        auth_header = {
+            "X-Emby-Authorization": 'Emby UserId="test", Client="Emby Theater", Device="eMPV", DeviceId="lol", '
+                                    'Version="1", Token=""',
+            "Content-Type": "application/json"}
+    authorization = requests.post("{}{}/Users/AuthenticateByName".format(ipaddress, media_server), data=user_login,
                                   headers=auth_header)
     if username.lower() in authorization.text.lower():
         print("Connection successfully established!\n")
         authorization = authorization.json()
         access_token = authorization["AccessToken"]
         user_id = authorization["SessionInfo"]["UserId"]
-        basic_header = {"X-Application": "eMPV/1",
-                        "X-Emby-Token": access_token}
+        if media_server == "":
+            basic_header = {"X-Application": "eMPV/1",
+                            "X-Emby-Token": access_token}
+        else:
+            basic_header = {"X-Application": "eMPV/1",
+                            "X-Jellyfin-Token": access_token}
     else:
         print("Authorization failed. Please try again.")
         exit()
