@@ -2,20 +2,17 @@
 Emby/Jellyfin command line client using mpv, written in python.
 
 ```
-git clone https://github.com/Vernoxvernax/empv.git
-python -m pip install -r requirements.txt
-python empv.py
+pip install efmpv
+python -m efmpv.py
 ```
 
 ___
 
 ### Latest update:
 
-+ Script now prints latest movies/tv-shows upon logging in.
-+ Config files now feature the media server address.
-+ Improved printing using a few more colors and newlines.
-+ Wasted 13 hours of my weekend
-+ hm
++ Linux and Windows support!! (kinda, on windows it spawns new mpv for every instance and get's stuck if you don't finish the video)
++ a lot of fixes
++ forgot the rest
 
 ___
 
