@@ -3,12 +3,13 @@ import socket
 import json
 import re
 import os.path
+import time
 from appdirs import *
 
 # Some middly important variables #
 global version
 version = "0.1.dev4"
-appname = "efMPV"
+appname = "Puddler"
 #
 
 
@@ -25,19 +26,19 @@ def red_print(text):
 
 
 def emby_or_jellyfin():
-    global ipaddress, media_server, media_server_name
+    global ipaddress, media_server, media_server_name, config_overwrite
     media_server = input("What kind of server do you want to stream from?\n [1] Emby\n [2] Jellyfin\n: ")
     if media_server == "1":
         media_server = "/emby"
         media_server_name = "Emby"
-        auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="efMPV", DeviceId="lol", '
-                                        'Version="0.1", Token="L"'.format(version)}
+        auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="lol", '
+                                        'Version="{}", Token="L"'.format(appname, version)}
     elif media_server == "2":
         media_server = ""
         media_server_name = "Jellyfin"
         auth_header = {
-            "X-Emby-Authorization": 'Emby UserId="", Client="Emby Theater", Device="efMPV", DeviceId="lol", '
-                                    'Version="0.1", Token="L"'.format(version),
+            "X-Emby-Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="lol", '
+                                    'Version="{}", Token="L"'.format(appname, version),
             "Content-Type": "application/json"}
     else:
         print("Input incorrect.")
@@ -61,10 +62,11 @@ def emby_or_jellyfin():
         while not use_config_input:
             if use_config == "Y" or use_config == "y":
                 use_config_input = True
+                config_overwrite = False
             elif use_config == "N" or use_config == "n":
                 use_config_input = True
+                config_overwrite = True
             else:
-                print(use_config)
                 use_config = input("Incorrect input. Please try again.\n: ")
     else:
         use_config = "N"
@@ -91,11 +93,17 @@ def emby_or_jellyfin():
                        .format(ipaddress))
         if answer in "yY":
             print("Great.")
+            config_overwrite = False
         elif answer in "nN":
-            print("Awww.")
             ipaddress = input("Go ahead smart ass (http://420.69.669.666:8096)\n: ")
+            config_overwrite = True
             if "http" not in ipaddress:
                 ipaddress = "http://{}".format(ipaddress)
+            # if os.path.isfile("{}/{}.config.json".format(user_cache_dir(appname),
+            #                                              media_server_name.lower())):
+            #     with open("{}/{}.config.json".format(user_cache_dir(appname),
+            #                                          media_server_name.lower()), "w") as output:
+            #         output
         else:
             print("Ok.")
             exit()
@@ -103,7 +111,7 @@ def emby_or_jellyfin():
 
 
 def login_auth(auth_header):
-    global user_login, username
+    global user_login, username, config_overwrite
     if not os.path.isfile("{}/{}.config.json".format(user_cache_dir(appname),
                                                      media_server_name.lower())):
         username = input("Please enter your {} username: ".format(media_server_name))
@@ -111,16 +119,7 @@ def login_auth(auth_header):
         if " " in username or " " in password:
             print("Make sure to not include any spaces!")
             exit()
-        print("Writing to config file: {}/{}.config.json".format(user_cache_dir(appname),
-                                                                 media_server_name.lower()))
-        with open("{}/{}.config.json".format(user_cache_dir(appname),
-                                             media_server_name.lower()), "w") as output:
-            stuff = {
-                "username": username,
-                "password": password,
-                "server": ipaddress
-            }
-            json.dump(stuff, output)
+        config_overwrite = True
     else:
         with open("{}/{}.config.json".format(user_cache_dir(appname),
                                              media_server_name.lower()), "r") as config:
@@ -141,14 +140,25 @@ def login_auth(auth_header):
                                   headers=auth_header)
     if username.lower() in authorization.text.lower():
         green_print("Connection successfully established!\n")
+        if config_overwrite:
+            print("Writing to config file: {}/{}.config.json".format(user_cache_dir(appname),
+                                                                     media_server_name.lower()))
+            with open("{}/{}.config.json".format(user_cache_dir(appname),
+                                                 media_server_name.lower()), "w") as output:
+                stuff = {
+                    "username": username,
+                    "password": password,
+                    "server": ipaddress
+                }
+                json.dump(stuff, output)
         authorization = authorization.json()
         access_token = authorization["AccessToken"]
         user_id = authorization["SessionInfo"]["UserId"]
         if media_server_name == "Emby":
-            basic_header = {"X-Application": "efMPV/{}".format(version),
+            basic_header = {"X-Application": "{}/{}".format(appname, version),
                             "X-Emby-Token": access_token}
         else:
-            basic_header = {"X-Application": "efMPV/{}".format(version),
+            basic_header = {"X-Application": "{}/{}".format(appname, version),
                             "X-Emby-Token": access_token}
     else:
         red_print("Authorization failed. Please try again.")
@@ -221,7 +231,7 @@ def choosing_media(user_id, basic_header):
     item_list, item_list_ids, item_list_type = print_json(items, False)
     search = input("Please choose from above, enter a search term like \"Firestarter\" or type \"ALL\" to display "
                    "literally everything.\n: ")
-    if search != "ALL" and not re.sub("[^0-9]", "", search):
+    if search != "ALL" and not re.search("^[0-9]+$", search):
         items = requests.get("{}{}/Items?SearchTerm={}&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
                              .format(ipaddress, media_server, search, user_id), headers=basic_header)
         if json_alone(items.json()["Items"]):
@@ -251,7 +261,7 @@ def log(loglevel, component, message):
     print('[{}] {}: {}'.format(loglevel, component, message))
 
 
-def run_mpv(stream_url):
+def run_mpv(stream_url, user_id, item_id, basic_header):
     try:
         import mpv
         print("Using libmpv1.")
@@ -271,14 +281,22 @@ def run_mpv(stream_url):
         libmpv = False
     player.fullscreen = True
     player.play(stream_url)
+    starting_playback = time.time()
     if libmpv:
         player.wait_for_playback()
         player.stop()
+        player.terminate()
     else:
         player.wait_for_property("duration")
         player.wait_for_property("duration")
         player.stop()
         # player.terminate()
+    ending_playback = time.time()
+    if ending_playback - starting_playback > 300:
+        mark_played = requests.post("{}{}/Users/{}/PlayedItems/{}".format(ipaddress, media_server, user_id, item_id),
+                                    headers=basic_header)
+        if mark_played.status_code == 200:
+            print("Item has been marked as [PLAYED].")
 
 
 def streaming(media_name, media_id, media_type, basic_header, user_id):
@@ -286,7 +304,7 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, episode_ids[starting_pos],
             basic_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url)
+        run_mpv(stream_url, user_id, episode_ids[starting_pos], basic_header)
         if not (starting_pos + 1) < len(episode_names):
             print("Ok. bye :)")
             return
@@ -301,7 +319,7 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
                 "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
                     ipaddress, media_server, episode_ids[starting_pos],
                     basic_header.get("X-{}-Token".format(media_server_name))))
-            run_mpv(stream_url)
+            run_mpv(stream_url, user_id, episode_ids[starting_pos], basic_header)
             if not (starting_pos + 1) < len(episode_names):
                 next_ep = False
 
@@ -309,7 +327,7 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
         print("Starting mpv...".format(media_name))
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, media_id, basic_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url)
+        run_mpv(stream_url, user_id, media_id, basic_header)
     elif media_type == "Series":
         print("\n{}:".format(media_name))
         series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
@@ -345,7 +363,7 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
             print("Are you stupid?!")
             exit()
         playlist(starting_pos)
-    green_print("All has playblack finished.\nIf you want to search for something new, press [Enter]")
+    green_print("All playback has finished.\nPress [Enter] to search for something else.")
     try:
         input()
     except KeyboardInterrupt:
