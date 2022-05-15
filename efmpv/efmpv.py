@@ -7,7 +7,7 @@ from appdirs import *
 
 # Some middly important variables #
 global version
-version = "0.1.dev3"
+version = "0.1.dev4"
 appname = "efMPV"
 #
 
