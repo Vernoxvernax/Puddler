@@ -355,7 +355,6 @@ def streaming(media_name, media_id, media_type, basic_header, user_id):
 
 
 def main():
-    print(user_cache_dir(appname))
     if not os.path.isdir(user_cache_dir(appname)):
         os.makedirs(user_cache_dir(appname))
     auth_header = emby_or_jellyfin()
