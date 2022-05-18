@@ -1,5 +1,5 @@
 import time
-from playback_reporting import report_playback
+from .playback_reporting import report_playback
 
 
 def log(loglevel, component, message):

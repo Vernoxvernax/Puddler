@@ -1,6 +1,6 @@
 import requests
 import re
-from mediaserver_information import check_information
+from .mediaserver_information import check_information
 
 # Some mildly important variables #
 global version
@@ -118,7 +118,7 @@ def choosing_media(head_dict):
 
 
 def streaming(head_dict, media_name, media_id, media_type):
-    from playing import run_mpv
+    from .playing import run_mpv
 
     def playlist(starting_pos):
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
