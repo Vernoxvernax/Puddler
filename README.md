@@ -1,18 +1,19 @@
 # Puddler (Emby/Jellyfin-MPV-Client)
 Emby/Jellyfin command line client, powered by mpv.
 
-### Currently, in extreme buggy alpha version.
+### Currently, in extreme buggy alpha state.
 ___
 
 ### Installation:
 ```
-$ python -m pip install puddler
+$ python -m pip install Puddler --upgrade
 $ python -m puddler
 ```
 
 **Latest update:**
 
-+ Item get's marked as played after 5min of playback. (idk what happenes with shorter videos)
++ Rewrote everything about the configuration, add sweet getch functions and useless printing.
++ playback will be improved in the next update/commit
 
 ___
 
