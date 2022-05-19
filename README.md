@@ -1,4 +1,4 @@
-# Puddler (Emby/Jellyfin-MPV-Client)
+# Puddler (Emby/Jellyfin-MPV-CLI)
 Emby/Jellyfin command line client, powered by mpv.
 
 ### Currently, in extreme buggy alpha state.
@@ -12,9 +12,12 @@ $ python -m puddler
 
 **Latest update:**
 
-+ Rewrote everything about the configuration, add sweet getch functions and useless printing.
-+ playback will be improved in the next update/commit
++ bearable support for watch-status (on/off value kind of thing)
++ the script now knows if you've watched more than 85% of a video and will then mark it as played.
 
+###### Make sure to let it retrieve the playback_time when seeking; the function loops each second.
+
+This does however only apply to linux users, I don't have the time to test it in a VM anymore. Will be done tomorrow.
 ___
 
 ### Information:

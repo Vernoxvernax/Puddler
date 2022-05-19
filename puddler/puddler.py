@@ -4,8 +4,10 @@ from .mediaserver_information import check_information
 
 # Some mildly important variables #
 global version
-version = "0.2.dev2"
+version = "0.2.dev3"
 appname = "Puddler"
+
+
 #
 
 
@@ -33,32 +35,26 @@ def choosing_media(head_dict):
 
     def print_json(items, count):
         item_list = []
-        item_list_ids = []
-        item_list_type = []
-        item_list_state = []
         for x in items["Items"]:
             if x["Name"] not in item_list:
-                item_list.append(x["Name"])
-                item_list_ids.append(x["Id"])
-                item_list_type.append(x["Type"])
+                item_list.append(x)
                 if x["UserData"]["Played"] == 0:
-                    item_list_state.append(0)
                     if not count:
-                        print("      [{}] {} - ({})".format(item_list.index(x["Name"]), x["Name"], x["Type"]))
+                        print(
+                            "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")))
                     else:
                         blue_print("      [{}] {} - ({})".format("Enter", x["Name"], x["Type"]))
                         input()
                 else:
-                    item_list_state.append(1)
                     if not count:
                         print("      [{}] {} - ({})".format(item_list.index(x["Name"]), x["Name"], x["Type"]), end="")
                     else:
                         blue_print("      [{}] {} - ({})".format("Enter", x["Name"], x["Type"]))
                         input()
                     green_print(" [PLAYED]")
-        return item_list, item_list_ids, item_list_type
+        return item_list
 
-    def process_input(already_asked):
+    def process_input(already_asked, item_list):
         if len(item_list) > 1:
             if not already_asked:
                 raw_pick = input(": ")
@@ -67,7 +63,7 @@ def choosing_media(head_dict):
             pick = int(re.sub("[^0-9]", "", raw_pick))
             if pick < (len(item_list) + 1) and not pick < 0:
                 print("\nYou've chosen ", end='')
-                blue_print(item_list[pick])
+                blue_print(item_list[pick].get("Name"))
             else:
                 print("Are you stupid?!")
                 exit()
@@ -77,8 +73,8 @@ def choosing_media(head_dict):
             return pick
         else:
             print("Nothing found.\n")
-            media_name, media_id, media_type = choosing_media(head_dict)
-            streaming(head_dict, media_name, media_id, media_type)
+            item_list = choosing_media(head_dict)
+            streaming(head_dict, item_list)
 
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
@@ -89,7 +85,7 @@ def choosing_media(head_dict):
     items = {
         "Items": items.json()
     }
-    item_list, item_list_ids, item_list_type = print_json(items, False)
+    item_list = print_json(items, False)
     search = input("Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
                    "display literally everything.\n: ")
     if search != "ALL" and not re.search("^[0-9]+$", search):
@@ -101,7 +97,7 @@ def choosing_media(head_dict):
         else:
             print("Please choose from the following results: ")
             item_list, item_list_ids, item_list_type = print_json(items.json(), False)
-        pick = process_input(False)
+        pick = process_input(False, item_list)
     elif search == "ALL":
         items = requests.get("{}{}/Items?SearchTerm=&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
                              .format(ipaddress, media_server, user_id), headers=request_header)
@@ -111,13 +107,13 @@ def choosing_media(head_dict):
         else:
             print("Please choose from the following results: ")
             item_list, item_list_ids, item_list_type = print_json(items.json(), False)
-        pick = process_input(False)
+        pick = process_input(False, item_list)
     else:
-        pick = process_input(True)
-    return item_list[pick], item_list_ids[pick], item_list_type[pick]
+        pick = process_input(True, item_list)
+    return item_list[pick]
 
 
-def streaming(head_dict, media_name, media_id, media_type):
+def streaming(head_dict, item_list):
     from .playing import run_mpv
 
     def playlist(starting_pos):
@@ -148,15 +144,15 @@ def streaming(head_dict, media_name, media_id, media_type):
     media_server_name = head_dict.get("media_server_name")
     user_id = head_dict.get("config_file").get("user_id")
     request_header = head_dict.get("request_header")
-    if media_type == "Movie":
-        print("Starting mpv...".format(media_name))
+    if item_list.get("Type") == "Movie":
+        print("Starting mpv...".format(item_list.get("Name")))
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-            ipaddress, media_server, media_id, request_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url, media_id, head_dict)
-    elif media_type == "Series":
-        print("\n{}:".format(media_name))
+            ipaddress, media_server, item_list.get("Id"), request_header.get("X-{}-Token".format(media_server_name))))
+        run_mpv(stream_url, item_list, head_dict)
+    elif item_list.get("Type") == "Series":
+        print("\n{}:".format(item_list.get("Name")))
         series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
-            ipaddress, media_server, user_id, media_id), headers=request_header).json()
+            ipaddress, media_server, user_id, item_list.get("Id")), headers=request_header).json()
         season_names = []
         season_ids = []
         for x in series["Items"]:
@@ -183,7 +179,7 @@ def streaming(head_dict, media_name, media_id, media_type):
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))
         if starting_pos < (len(episode_ids) + 1) and not starting_pos < 0:
             print("\nYou've chosen ", end='')
-            blue_print(episode_names[starting_pos])
+            blue_print(episode_names[starting_pos].get("Name"))
         else:
             print("Are you stupid?!")
             exit()
@@ -193,14 +189,14 @@ def streaming(head_dict, media_name, media_id, media_type):
         input()
     except KeyboardInterrupt:
         exit()
-    media_name, media_id, media_type = choosing_media(head_dict)
-    streaming(head_dict, media_name, media_id, media_type)
+    item_list = choosing_media(head_dict)
+    streaming(head_dict, item_list)
 
 
 def main():
     head_dict = check_information(appname, version)
-    media_name, media_id, media_type = choosing_media(head_dict)
-    streaming(head_dict, media_name, media_id, media_type)
+    item_list = choosing_media(head_dict)
+    streaming(head_dict, item_list)
 
 
 main()

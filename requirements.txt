@@ -1,5 +1,5 @@
 requests~=2.27.1
 python-mpv-jsonipc
+python-mpv
 appdirs~=1.4.4
-Puddler~=0.1.dev4
 getch
