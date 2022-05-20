@@ -9,18 +9,23 @@ def log(loglevel, component, message):
 
 def run_mpv(stream_url, item_list, head_dict):
     def collect_time(eof=False):
-        player.wait_until_playing()
         playing = True
         while playing:
+            time.sleep(0.5)
             try:
                 curr = player.playback_time
             except:
                 playing = False
-            time.sleep(1)
-        if not eof:
-            report_playback(item_list, head_dict, curr)
-        else:
-            report_playback(item_list, head_dict, curr, True)
+        try:
+            player.command("stop")
+            player.terminate()
+        except:
+            pass
+        finally:
+            if not eof:
+                report_playback(item_list, head_dict, curr)
+            else:
+                report_playback(item_list, head_dict, curr, True)
 
     # def mark_played_on_finish():
     #     player.wait_for_event('end_file')
@@ -40,26 +45,22 @@ def run_mpv(stream_url, item_list, head_dict):
         import python_mpv_jsonipc as mpv
         player = mpv.MPV(start_mpv=True,
                          log_handler=log,
-                         loglevel='error')
+                         loglevel='error',
+                         ipc_socket="/tmp/mpvsocket")
         libmpv = False
     player.fullscreen = True
     player.play(stream_url)
     # q = threading.Thread(target=mark_played_on_finish)
     # q.start()
     # threads.append(q)
+    r = threading.Thread(target=collect_time)
+    threads = [r]
     if libmpv:
-        threads = []
-        r = threading.Thread(target=collect_time)
+        player.wait_until_playing()
         r.start()
-        threads.append(r)
-        for x in threads:
-            x.join()
         player.wait_for_shutdown()
-        player.stop()
-        player.terminate()
     else:
         player.wait_for_property("duration")
-        player.wait_for_property("duration")
-        player.terminate()
-        player.stop()
-        # player.terminate()
+        r.start()
+    for x in threads:
+        x.join()

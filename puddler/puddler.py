@@ -4,10 +4,8 @@ from .mediaserver_information import check_information
 
 # Some mildly important variables #
 global version
-version = "0.2.dev3"
+version = "0.2.dev4"
 appname = "Puddler"
-
-
 #
 
 

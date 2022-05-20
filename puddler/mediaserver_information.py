@@ -22,7 +22,7 @@ def red_print(text):
 def get_keypress(allowed):
     if os.name == 'nt':
         import msvcrt
-        key = msvcrt.getche()
+        key = msvcrt.getche().decode('ASCII')
     else:
         import getch
         key = getch.getche()
