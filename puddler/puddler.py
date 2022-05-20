@@ -4,7 +4,7 @@ from .mediaserver_information import check_information
 
 # Some mildly important variables #
 global version
-version = "0.2.dev4"
+version = "0.2.dev5"
 appname = "Puddler"
 #
 
@@ -41,13 +41,14 @@ def choosing_media(head_dict):
                         print(
                             "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")))
                     else:
-                        blue_print("      [{}] {} - ({})".format("Enter", x["Name"], x["Type"]))
+                        blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
                         input()
                 else:
                     if not count:
-                        print("      [{}] {} - ({})".format(item_list.index(x["Name"]), x["Name"], x["Type"]), end="")
+                        print(
+                            "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")), end="")
                     else:
-                        blue_print("      [{}] {} - ({})".format("Enter", x["Name"], x["Type"]))
+                        blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
                         input()
                     green_print(" [PLAYED]")
         return item_list
@@ -91,20 +92,20 @@ def choosing_media(head_dict):
                              .format(ipaddress, media_server, search, user_id), headers=request_header)
         if json_alone(items.json()["Items"]):
             print("\nOnly one item has been found.\nDo you want to select this title?")
-            item_list, item_list_ids, item_list_type = print_json(items.json(), True)
+            item_list = print_json(items.json(), True)
         else:
             print("Please choose from the following results: ")
-            item_list, item_list_ids, item_list_type = print_json(items.json(), False)
+            item_list = print_json(items.json(), False)
         pick = process_input(False, item_list)
     elif search == "ALL":
         items = requests.get("{}{}/Items?SearchTerm=&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
                              .format(ipaddress, media_server, user_id), headers=request_header)
         if json_alone(items.json()["Items"]):
             print("\nOnly one item has been found.\nDo you want to select this title?")
-            item_list, item_list_ids, item_list_type = print_json(items.json(), True)
+            item_list = print_json(items.json(), True)
         else:
             print("Please choose from the following results: ")
-            item_list, item_list_ids, item_list_type = print_json(items.json(), False)
+            item_list = print_json(items.json(), False)
         pick = process_input(False, item_list)
     else:
         pick = process_input(True, item_list)
@@ -116,31 +117,34 @@ def streaming(head_dict, item_list):
 
     def playlist(starting_pos):
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-            ipaddress, media_server, episode_ids[starting_pos],
+            ipaddress, media_server, episode_list[starting_pos].get("Id"),
             request_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url, episode_ids[starting_pos], head_dict)
-        if not (starting_pos + 1) < len(episode_names):
+        run_mpv(stream_url, episode_list[starting_pos], head_dict)
+        if not (starting_pos + 1) < len(episode_list):
             print("Ok. bye :)")
             return
         next_ep = True
-        input("Welcome back. Do you want to continue playback with {}?\n[Enter]".format(
-            episode_names[starting_pos + 1]))
+        try:
+            input("Welcome back. Do you want to continue playback with {}?\n[Enter]".format(
+                episode_list[starting_pos + 1].get("Name")))
+        except KeyboardInterrupt:
+            exit()
         index = 1
         while next_ep:
             starting_pos = starting_pos + index
-            print("Starting playback of {}.".format(episode_names[starting_pos]))
+            print("Starting playback of {}.".format(episode_list[starting_pos].get("Name")))
             stream_url = (
                 "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-                    ipaddress, media_server, episode_ids[starting_pos],
+                    ipaddress, media_server, episode_list[starting_pos].get("Id"),
                     request_header.get("X-{}-Token".format(media_server_name))))
-            run_mpv(stream_url, episode_ids[starting_pos], head_dict)
-            if not (starting_pos + 1) < len(episode_names):
+            run_mpv(stream_url, episode_list[starting_pos], head_dict)
+            if not (starting_pos + 1) < len(episode_list):
                 next_ep = False
 
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
     media_server_name = head_dict.get("media_server_name")
-    user_id = head_dict.get("config_file").get("user_id")
+    user_id = head_dict.get("user_id")
     request_header = head_dict.get("request_header")
     if item_list.get("Type") == "Movie":
         print("Starting mpv...".format(item_list.get("Name")))
@@ -148,36 +152,29 @@ def streaming(head_dict, item_list):
             ipaddress, media_server, item_list.get("Id"), request_header.get("X-{}-Token".format(media_server_name))))
         run_mpv(stream_url, item_list, head_dict)
     elif item_list.get("Type") == "Series":
-        print("\n{}:".format(item_list.get("Name")))
+        print("{}:".format(item_list.get("Name")))
         series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
             ipaddress, media_server, user_id, item_list.get("Id")), headers=request_header).json()
-        season_names = []
-        season_ids = []
+        season_list = []
         for x in series["Items"]:
-            season_names.append(x["Name"])
-            season_ids.append(x["Id"])
-        episode_names = []
-        episode_ids = []
-        episode_states = []
-        for y in season_ids:
-            print("   {}".format(season_names[season_ids.index(y)]))
+            season_list.append(x)
+        episode_list = []
+        for y in season_list:
+            print("   {}".format(y.get("Name")))
             episodes = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
-                ipaddress, media_server, user_id, y), headers=request_header).json()
+                ipaddress, media_server, user_id, y.get("Id")), headers=request_header).json()
             for z in episodes["Items"]:
-                episode_names.append(z["Name"])
-                episode_ids.append(z["Id"])
-                if z["UserData"]["Played"] == 0:
-                    episode_states.append(0)
-                    print("      [{}] {}".format(episode_names.index(z["Name"]), z["Name"]))
+                episode_list.append(z)
+                if z.get("UserData").get("Played") == 0:
+                    print("      [{}] {}".format(episode_list.index(z), z.get("Name")))
                 else:
-                    episode_states.append(1)
-                    print("      [{}] {}".format(episode_names.index(z["Name"]), z["Name"]), end="")
+                    print("      [{}] {}".format(episode_list.index(z), z.get("Name")), end="")
                     green_print(" [PLAYED]")
         starting_pos = input("Please enter which episode you want to continue at.\n: ")
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))
-        if starting_pos < (len(episode_ids) + 1) and not starting_pos < 0:
+        if starting_pos < (len(episode_list) + 1) and not starting_pos < 0:
             print("\nYou've chosen ", end='')
-            blue_print(episode_names[starting_pos].get("Name"))
+            blue_print(episode_list[starting_pos].get("Name"))
         else:
             print("Are you stupid?!")
             exit()

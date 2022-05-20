@@ -13,7 +13,10 @@ def run_mpv(stream_url, item_list, head_dict):
         while playing:
             time.sleep(0.5)
             try:
-                curr = player.playback_time
+                if player.playback_time is not None:
+                    curr = player.playback_time
+                else:
+                    raise
             except:
                 playing = False
         try:
