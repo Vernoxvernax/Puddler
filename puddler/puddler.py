@@ -119,7 +119,7 @@ def streaming(head_dict, item_list):
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, episode_list[starting_pos].get("Id"),
             request_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url, episode_list[starting_pos], head_dict)
+        run_mpv(stream_url, episode_list[starting_pos], head_dict, appname)
         if not (starting_pos + 1) < len(episode_list):
             print("Ok. bye :)")
             return
@@ -137,7 +137,7 @@ def streaming(head_dict, item_list):
                 "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
                     ipaddress, media_server, episode_list[starting_pos].get("Id"),
                     request_header.get("X-{}-Token".format(media_server_name))))
-            run_mpv(stream_url, episode_list[starting_pos], head_dict)
+            run_mpv(stream_url, episode_list[starting_pos], head_dict, appname)
             if not (starting_pos + 1) < len(episode_list):
                 next_ep = False
 
@@ -150,7 +150,7 @@ def streaming(head_dict, item_list):
         print("Starting mpv...".format(item_list.get("Name")))
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, item_list.get("Id"), request_header.get("X-{}-Token".format(media_server_name))))
-        run_mpv(stream_url, item_list, head_dict)
+        run_mpv(stream_url, item_list, head_dict, appname)
     elif item_list.get("Type") == "Series":
         print("{}:".format(item_list.get("Name")))
         series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
@@ -183,6 +183,8 @@ def streaming(head_dict, item_list):
     try:
         input()
     except KeyboardInterrupt:
+        requests.post("{}{}/Sessions/Logout".format(
+                ipaddress, media_server), headers=request_header)
         exit()
     item_list = choosing_media(head_dict)
     streaming(head_dict, item_list)

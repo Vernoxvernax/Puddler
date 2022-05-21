@@ -12,7 +12,14 @@ $ python -m puddler
 
 **Latest update:**
 
-+ fixed series; `ALL` and basically everything besides the `Latest Movie`-playback which has already been working. 
++ kinda "full" playback support
+
+Takes info (paused yes/no and progress) from mpv every 5 seconds and posts it to the media server. Closes session on CTRL+C. And sents progress on exiting.
+
+You should be aware that this does however not mean, mpv will continue an item.
+
+
+< will be implemented soon.
 
 ___
 
@@ -29,6 +36,5 @@ ___
 Instead of a list with features, here is a to-do list:
 
 - flawless playback of multiple episodes
-- actual good playback report
 
 ___

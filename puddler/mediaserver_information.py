@@ -98,12 +98,19 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
                                   headers=auth_header)
     if authorization.status_code == 200:
         green_print("Connection successfully established!")
-        request_header = {
-            "X-Application": "{}/{}".format(appname, version),
-            "X-Emby-Token": authorization.json().get("AccessToken")
-        }
+        if media_server_name == "Emby":
+            request_header = {
+                "X-Application": "{}/{}".format(appname, version),
+                "X-Emby-Token": authorization.json().get("AccessToken")
+            }
+        elif media_server_name == "Jellyfin":
+            request_header = {
+                "X-Application": "{}/{}".format(appname, version),
+                "X-Mediabrowser-Token": authorization.json().get("AccessToken")
+            }
         user_id = authorization.json().get("User").get("Id")
-        return True, True, config_file, request_header, user_id
+        session_info = authorization.json().get("SessionInfo")
+        return True, True, config_file, request_header, user_id, session_info
     else:
         print("There seems to be some issues connecting to your media-server.\n"
               "    status_code: {}\n [1] Do you want to recreate the config file?\n [E] Exit.\n: "
@@ -113,9 +120,9 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
             config_file = {
                 "use_config": False
             }
-            config_file, connected, request_header, user_id = \
+            config_file, connected, request_header, user_id, session_info = \
                 configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
-            return False, connected, config_file, request_header, user_id
+            return False, connected, config_file, request_header, user_id, session_info
         else:
             exit()
 
@@ -137,15 +144,16 @@ def configure_new_login(appname, version, media_server_name, media_server, confi
                 "pw": password
             }
         }
-        func_succ, connected, config_file, request_header, user_id = \
+        func_succ, connected, config_file, request_header, user_id, session_info = \
             test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
         write_config(appname, media_server_name, config_file)
-        return True, config_file, connected, request_header, user_id
+        return True, config_file, connected, request_header, user_id, session_info
     else:
         connected = True
         request_header = "null"
         user_id = "null"
-        return False, config_file, connected, request_header, user_id
+        session_info = "null"
+        return False, config_file, connected, request_header, user_id, session_info
 
 
 def configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header):
@@ -190,13 +198,13 @@ def configure_new_server(appname, version, media_server_name, media_server, conf
         if hungry in "yY":
             func_succ = False
             while not func_succ:
-                func_succ, connected, request_header, user_id = \
+                func_succ, connected, request_header, user_id, session_info = \
                     test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
     func_succ = False
     while not func_succ:
-        func_succ, config_file, connected, request_header, user_id = \
+        func_succ, config_file, connected, request_header, user_id, session_info = \
             configure_new_login(appname, version, media_server_name, media_server, config_file, auth_header)
-    return config_file, connected, request_header, user_id
+    return config_file, connected, request_header, user_id, session_info
 
 
 def check_information(appname, version):
@@ -219,8 +227,8 @@ def check_information(appname, version):
         config_file = {
             "use_config": False
         }
-        config_file, connected, request_header, user_id = configure_new_server(appname, version, media_server_name,
-                                                                               media_server, config_file, auth_header)
+        config_file, connected, request_header, user_id, session_info = \
+            configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
         head_dict = {
             "media_server_name": media_server_name,
             "media_server": media_server,
@@ -234,29 +242,30 @@ def check_information(appname, version):
         config_file = {
             "use_config": False
         }
-        config_file, connected, request_header, user_id = configure_new_server(appname, version, media_server_name,
-                                                                               media_server, config_file, auth_header)
+        config_file, connected, request_header, user_id, session_info = \
+            configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
         head_dict = {
             "media_server_name": media_server_name,
             "media_server": media_server,
             "config_file": config_file,
             "auth_header": auth_header,
             "request_header": request_header,
-            "user_id": user_id
+            "user_id": user_id,
+            "session_info": session_info
         }
     else:
         print("Configuration files found!")
         config_file = read_config(appname, media_server_name)
         if not config_file.get("use_config"):
-            config_file, connected, request_header, user_id = \
+            config_file, connected, request_header, user_id, session_info = \
                 configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
         else:
             func_succ = False
             while not func_succ:
-                func_succ, connected, config_file,  request_header, user_id = \
+                func_succ, connected, config_file,  request_header, user_id, session_info = \
                     test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
         if not connected:
-            config_file, connected, request_header, user_id = \
+            config_file, connected, request_header, user_id, session_info = \
                 configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
         head_dict = {
             "media_server_name": media_server_name,
@@ -264,6 +273,7 @@ def check_information(appname, version):
             "config_file": config_file,
             "auth_header": auth_header,
             "request_header": request_header,
-            "user_id": user_id
+            "user_id": user_id,
+            "session_info": session_info
         }
     return head_dict
