@@ -1,10 +1,11 @@
 import requests
 import re
 from .mediaserver_information import check_information
+from .mediaserver_information import get_keypress
 
 # Some mildly important variables #
 global version
-version = "0.2.dev5"
+version = "0.3.dev2"
 appname = "Puddler"
 #
 
@@ -19,6 +20,12 @@ def blue_print(text):
 
 def red_print(text):
     print("\033[91m{}\033[00m".format(text))
+
+
+def close_session(ipaddress, media_server, request_header):
+    requests.post("{}{}/Sessions/Logout".format(
+        ipaddress, media_server), headers=request_header)
+    exit()
 
 
 def choosing_media(head_dict):
@@ -47,10 +54,10 @@ def choosing_media(head_dict):
                     if not count:
                         print(
                             "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")), end="")
+                        green_print(" [PLAYED]")
                     else:
-                        blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
+                        blue_print("      [{}] {} - ({}) [PLAYED]".format("Enter", x.get("Name"), x.get("Type")))
                         input()
-                    green_print(" [PLAYED]")
         return item_list
 
     def process_input(already_asked, item_list):
@@ -61,7 +68,7 @@ def choosing_media(head_dict):
                 raw_pick = search
             pick = int(re.sub("[^0-9]", "", raw_pick))
             if pick < (len(item_list) + 1) and not pick < 0:
-                print("\nYou've chosen ", end='')
+                print("\nYou've chosen ", end="")
                 blue_print(item_list[pick].get("Name"))
             else:
                 print("Are you stupid?!")
@@ -118,28 +125,34 @@ def streaming(head_dict, item_list):
     def playlist(starting_pos):
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, episode_list[starting_pos].get("Id"),
-            request_header.get("X-{}-Token".format(media_server_name))))
+            request_header.get("X-Emby-Token")))
         run_mpv(stream_url, episode_list[starting_pos], head_dict, appname)
-        if not (starting_pos + 1) < len(episode_list):
-            print("Ok. bye :)")
-            return
         next_ep = True
-        try:
-            input("Welcome back. Do you want to continue playback with {}?\n[Enter]".format(
-                episode_list[starting_pos + 1].get("Name")))
-        except KeyboardInterrupt:
-            exit()
-        index = 1
         while next_ep:
-            starting_pos = starting_pos + index
-            print("Starting playback of {}.".format(episode_list[starting_pos].get("Name")))
+            starting_pos = starting_pos + 1
+            if starting_pos == len(episode_list):
+                return
+            try:
+                green_print("\nWelcome back. Do you want to continue playback with:")
+                blue_print("   {}".format(episode_list[starting_pos].get("Name")))
+                print(" (Y)es | (N)o | (E)xit\n: ", end="")
+                what = get_keypress("YyNnEe")
+                if what in "Yy":
+                    next_ep = True
+                elif what in "Nn":
+                    next_ep = False
+                    return
+                elif what in "Ee":
+                    close_session(ipaddress, media_server, request_header)
+            except KeyboardInterrupt:
+                close_session(ipaddress, media_server, request_header)
+            print("Starting playback of:")
+            blue_print("  {}".format(episode_list[starting_pos].get("Name")))
             stream_url = (
                 "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
                     ipaddress, media_server, episode_list[starting_pos].get("Id"),
                     request_header.get("X-{}-Token".format(media_server_name))))
             run_mpv(stream_url, episode_list[starting_pos], head_dict, appname)
-            if not (starting_pos + 1) < len(episode_list):
-                next_ep = False
 
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
@@ -170,10 +183,10 @@ def streaming(head_dict, item_list):
                 else:
                     print("      [{}] {}".format(episode_list.index(z), z.get("Name")), end="")
                     green_print(" [PLAYED]")
-        starting_pos = input("Please enter which episode you want to continue at.\n: ")
+        starting_pos = input("Please enter which episode you want to continue at. (number)\n: ")
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))
         if starting_pos < (len(episode_list) + 1) and not starting_pos < 0:
-            print("\nYou've chosen ", end='')
+            print("\nYou've chosen ", end="")
             blue_print(episode_list[starting_pos].get("Name"))
         else:
             print("Are you stupid?!")
@@ -183,9 +196,7 @@ def streaming(head_dict, item_list):
     try:
         input()
     except KeyboardInterrupt:
-        requests.post("{}{}/Sessions/Logout".format(
-                ipaddress, media_server), headers=request_header)
-        exit()
+        close_session(ipaddress, media_server, request_header)
     item_list = choosing_media(head_dict)
     streaming(head_dict, item_list)
 

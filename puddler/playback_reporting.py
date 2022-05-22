@@ -77,12 +77,11 @@ def started_playing(item_list, head_dict, appname, starttime):
         "MediaSourceId": playback_info.get("MediaSources")[0].get("Id"),
         "IsPaused": False,
         "IsMuted": False,
-        "PlaybackStartTimeTicks": starttime,
+        "PlaybackStartTimeTicks": item_list.get("UserData").get("PlaybackPositionTicks"),
         "PlayMethod": "DirectStream",
         "RepeatMode": "RepeatNone"
     }
-    mark_playing = requests.post(
-        "{}{}/Sessions/Playing?format=json".format(
+    requests.post("{}{}/Sessions/Playing?format=json".format(
             ipaddress, media_server), json=playing_request,
-        headers=request_header)
+            headers=request_header)
     return playback_info.get("PlaySessionId"), playback_info.get("MediaSources")[0].get("Id")

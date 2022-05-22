@@ -1,6 +1,5 @@
-import time
-import threading
 from .playback_reporting import *
+import threading
 
 
 def log(loglevel, component, message):
@@ -49,7 +48,7 @@ def run_mpv(stream_url, item_list, head_dict, appname):
                         "RepeatMode": "RepeatNone",
                         "EventName": "TimeUpdate"
                     }
-                    update = requests.post("{}{}/Sessions/Playing/Progress".format(
+                    requests.post("{}{}/Sessions/Playing/Progress".format(
                         head_dict.get("config_file").get("ipaddress"), head_dict.get("media_server")),
                         json=updates, headers=head_dict.get("request_header"))
                     time.sleep(5)
@@ -57,10 +56,6 @@ def run_mpv(stream_url, item_list, head_dict, appname):
                     raise
             except:
                 playing = False
-
-    # def mark_played_on_finish():
-    #     player.wait_for_event('end_file')
-    #     r.eof = True
 
     try:
         import mpv
@@ -85,6 +80,7 @@ def run_mpv(stream_url, item_list, head_dict, appname):
     threads = [r]
     if libmpv:
         player.wait_until_playing()
+        player.seek(item_list.get("UserData").get("PlaybackPositionTicks") / 10000000)
         playsession_id, mediasource_id = started_playing(item_list, head_dict, appname, player.playback_time)
         s = threading.Thread(target=update_playback, args=(playsession_id, mediasource_id))
         threads.append(s)

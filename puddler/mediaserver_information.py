@@ -106,7 +106,7 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
         elif media_server_name == "Jellyfin":
             request_header = {
                 "X-Application": "{}/{}".format(appname, version),
-                "X-Mediabrowser-Token": authorization.json().get("AccessToken")
+                "X-Emby-Token": authorization.json().get("AccessToken")
             }
         user_id = authorization.json().get("User").get("Id")
         session_info = authorization.json().get("SessionInfo")

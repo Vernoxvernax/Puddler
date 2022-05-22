@@ -12,29 +12,23 @@ $ python -m puddler
 
 **Latest update:**
 
-+ kinda "full" playback support
-
-Takes info (paused yes/no and progress) from mpv every 5 seconds and posts it to the media server. Closes session on CTRL+C. And sents progress on exiting.
-
-You should be aware that this does however not mean, mpv will continue an item.
-
-
-< will be implemented soon.
++ script will now seek timeline to the progress logged on the server
++ improved playlist/series mode; better printing and asks for every episode to play
 
 ___
 
 ### Information:
 
-Currently, not a lot of features.
+Currently, only the most basic features.
 
 But at least both emby and jellyfin are supported.
 
-Playback using search-term and some ridiculous playlist mode.
+Playback using search-term and some weird playlist mode.
 
 ___
 
 Instead of a list with features, here is a to-do list:
 
-- flawless playback of multiple episodes
++ nothing
 
 ___
