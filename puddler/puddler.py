@@ -2,10 +2,11 @@ import requests
 import re
 from .mediaserver_information import check_information
 from .mediaserver_information import get_keypress
+from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev2"
+version = "0.3.dev3"
 appname = "Puddler"
 #
 
@@ -25,6 +26,8 @@ def red_print(text):
 def close_session(ipaddress, media_server, request_header):
     requests.post("{}{}/Sessions/Logout".format(
         ipaddress, media_server), headers=request_header)
+    if use_rpc:
+        rpc.close()
     exit()
 
 
@@ -49,7 +52,10 @@ def choosing_media(head_dict):
                             "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")))
                     else:
                         blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
-                        input()
+                        try:
+                            input()
+                        except KeyboardInterrupt:
+                            close_session(ipaddress, media_server, request_header)
                 else:
                     if not count:
                         print(
@@ -57,13 +63,19 @@ def choosing_media(head_dict):
                         green_print(" [PLAYED]")
                     else:
                         blue_print("      [{}] {} - ({}) [PLAYED]".format("Enter", x.get("Name"), x.get("Type")))
-                        input()
+                        try:
+                            input()
+                        except KeyboardInterrupt:
+                            close_session(ipaddress, media_server, request_header)
         return item_list
 
     def process_input(already_asked, item_list):
         if len(item_list) > 1:
             if not already_asked:
-                raw_pick = input(": ")
+                try:
+                    raw_pick = input(": ")
+                except KeyboardInterrupt:
+                    close_session(ipaddress, media_server, request_header)
             else:
                 raw_pick = search
             pick = int(re.sub("[^0-9]", "", raw_pick))
@@ -92,8 +104,11 @@ def choosing_media(head_dict):
         "Items": items.json()
     }
     item_list = print_json(items, False)
-    search = input("Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
+    try:
+        search = input("Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
                    "display literally everything.\n: ")
+    except KeyboardInterrupt:
+        close_session(ipaddress, media_server, request_header)
     if search != "ALL" and not re.search("^[0-9]+$", search):
         items = requests.get("{}{}/Items?SearchTerm={}&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
                              .format(ipaddress, media_server, search, user_id), headers=request_header)
@@ -177,13 +192,18 @@ def streaming(head_dict, item_list):
             episodes = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
                 ipaddress, media_server, user_id, y.get("Id")), headers=request_header).json()
             for z in episodes["Items"]:
+                if z in episode_list:
+                    continue
                 episode_list.append(z)
                 if z.get("UserData").get("Played") == 0:
                     print("      [{}] {}".format(episode_list.index(z), z.get("Name")))
                 else:
                     print("      [{}] {}".format(episode_list.index(z), z.get("Name")), end="")
                     green_print(" [PLAYED]")
-        starting_pos = input("Please enter which episode you want to continue at. (number)\n: ")
+        try:
+            starting_pos = input("Please enter which episode you want to continue at. (number)\n: ")
+        except KeyboardInterrupt:
+            close_session(ipaddress, media_server, request_header)
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))
         if starting_pos < (len(episode_list) + 1) and not starting_pos < 0:
             print("\nYou've chosen ", end="")

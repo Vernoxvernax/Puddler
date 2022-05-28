@@ -1,6 +1,16 @@
+import pypresence
 import time
 import re
 import requests
+
+# Puddler discord application
+try:
+    rpc = pypresence.Presence("980093587314343957")
+    rpc.connect()
+    use_rpc = True
+except pypresence.exceptions.DiscordNotFound:
+    use_rpc = False
+    print("Discord-Presence is not available.")
 
 
 def report_playback(item_list, head_dict, ending_playback=None, eof=None):
@@ -9,6 +19,8 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
     user_id = head_dict.get("user_id")
     request_header = head_dict.get("request_header")
     session_info = head_dict.get("session_info")
+    if use_rpc:
+        rpc.close()
     if eof:
         print("{}{}/Users/{}/PlayedItems/{}".format(ipaddress, media_server, user_id, item_list.get("Id")))
         mark_played = requests.post(
@@ -33,7 +45,7 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
                 "MediaSourceId": playback_info.get("MediaSources")[0].get("Id"),
                 "PositionTicks": int(ending_playback * 10000000)
             }
-            mark_played = requests.post(
+            requests.post(
                 "{}{}/Sessions/Playing/Stopped".format(ipaddress, media_server),
                 json=progress, headers=request_header)
             prog = ""
@@ -52,11 +64,11 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
             print("Item has NOT been marked as [PLAYED].")
     else:
         print("Item has NOT been marked as [PLAYED].")
+    print("Waiting for all threads to finish...")
 
 
 def started_playing(item_list, head_dict, appname, starttime):
-    global playback_info # this line doesnt exist
-    starttime = int(starttime * 10000000)
+    global playback_info  # this line doesnt exist
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
     user_id = head_dict.get("user_id")
@@ -82,6 +94,47 @@ def started_playing(item_list, head_dict, appname, starttime):
         "RepeatMode": "RepeatNone"
     }
     requests.post("{}{}/Sessions/Playing?format=json".format(
-            ipaddress, media_server), json=playing_request,
-            headers=request_header)
+        ipaddress, media_server), json=playing_request,
+        headers=request_header)
     return playback_info.get("PlaySessionId"), playback_info.get("MediaSources")[0].get("Id")
+
+
+def update_playback(player, item_list, head_dict, playsession_id, mediasource_id):
+    playing = True
+    while playing:
+        try:
+            if player.playback_time is not None:
+                curr = int(player.playback_time * 10000000)
+                updates = {
+                    "CanSeek": True,
+                    "ItemId": item_list.get("Id"),
+                    "PlaySessionId": playsession_id,
+                    "SessionId": head_dict.get("session_info").get("Id"),
+                    "MediaSourceId": mediasource_id,
+                    "IsPaused": player.pause,
+                    "IsMuted": player.mute,
+                    "PositionTicks": curr,
+                    "PlayMethod": "DirectStream",
+                    "RepeatMode": "RepeatNone",
+                    "EventName": "TimeUpdate"
+                }
+                totalruntime = item_list.get("RunTimeTicks") / 10000000
+                if item_list.get("Type") == "Movie" and use_rpc:
+                    rpc.update(state="{}".format(item_list.get("Name"), details="{}".format(item_list.get("Type"))),
+                               start=int(time.time() - player.playback_time),
+                               end=int(time.time() + totalruntime - player.playback_time),
+                               small_image=head_dict.get("media_server_name").lower())
+                elif item_list.get("Type") == "Episode" and use_rpc:
+                    rpc.update(state="{} - {}".format(item_list.get("SeasonName"), item_list.get("Name")),
+                               details="{}".format(item_list.get("SeriesName")),
+                               start=int(time.time() - player.playback_time),
+                               end=int(time.time() + totalruntime - player.playback_time),
+                               small_image=head_dict.get("media_server_name").lower())
+                requests.post("{}{}/Sessions/Playing/Progress".format(
+                    head_dict.get("config_file").get("ipaddress"), head_dict.get("media_server")),
+                    json=updates, headers=head_dict.get("request_header"))
+                time.sleep(10)
+            else:
+                raise
+        except:
+            playing = False
