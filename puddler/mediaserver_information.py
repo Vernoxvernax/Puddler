@@ -6,6 +6,9 @@ import json
 import socket
 from appdirs import *
 
+global connected
+connected = None
+
 
 def green_print(text):
     print("\033[92m{}\033[00m".format(text))
@@ -19,6 +22,7 @@ def red_print(text):
     print("\033[91m{}\033[00m".format(text))
 
 
+# Get key presses without the need to push enter
 def get_keypress(allowed):
     if os.name == 'nt':
         import msvcrt
@@ -89,6 +93,7 @@ def write_config(appname, media_server_name, config_file):
 
 
 def test_auth(appname, version, media_server_name, media_server, config_file, auth_header):
+    global connected
     print("Testing {} connection ...".format(media_server_name))
     if media_server_name == "Jellyfin":
         config_file["user_login"] = json.dumps(config_file.get("user_login")).encode("utf-8")
@@ -103,60 +108,45 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
                 "X-Application": "{}/{}".format(appname, version),
                 "X-Emby-Token": authorization.json().get("AccessToken")
             }
-        elif media_server_name == "Jellyfin":
+        else:
             request_header = {
                 "X-Application": "{}/{}".format(appname, version),
                 "X-Emby-Token": authorization.json().get("AccessToken")
             }
         user_id = authorization.json().get("User").get("Id")
         session_info = authorization.json().get("SessionInfo")
-        return True, True, config_file, request_header, user_id, session_info
+        connected = True
+        return config_file, request_header, user_id, session_info
     else:
         print("There seems to be some issues connecting to your media-server.\n"
               "    status_code: {}\n [1] Do you want to recreate the config file?\n [E] Exit.\n: "
               .format(authorization.status_code), end="")
-        ohoh = get_keypress("1Ee")
-        if ohoh == "1":
-            config_file = {
-                "use_config": False
-            }
-            config_file, connected, request_header, user_id, session_info = \
-                configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
-            return False, connected, config_file, request_header, user_id, session_info
-        else:
-            exit()
+        return "" "" "" ""
 
 
-def configure_new_login(appname, version, media_server_name, media_server, config_file, auth_header):
-    username = input("Please enter your {} username: ".format(media_server_name))
-    password = input("Please enter your {} password: ".format(media_server_name))
-    if " " in username or " " in password:
-        print("Make sure to not include any spaces!")
-        return False, False, False, False, False
-    print("Do you want to confirm your input?\n  (Y)es / (N)o\n: ", end="")
-    bored = get_keypress("yYNn")
-    if bored in "yY":
-        config_file = {
-            "use_config": True,
-            "ipaddress": config_file.get("ipaddress"),
-            "user_login": {
-                "username": username,
-                "pw": password
-            }
+def configure_new_login(appname, media_server_name, config_file):
+    def repeatable():
+        username = input("Please enter your {} username: ".format(media_server_name))
+        password = input("Please enter your {} password: ".format(media_server_name))
+        return username, password
+    bored = None
+    while not bored:
+        username, password = repeatable()
+        if " " in username or " " in password:
+            print("Make sure to not include any spaces!")
+            continue
+        print("Do you want to confirm your input?\n  (Y)es / (N)o\n: ", end="")
+        if get_keypress("yYNn") in "yY":
+            bored = "bruh"
+    config_file["user_login"] = {
+            "username": username,
+            "pw": password
         }
-        func_succ, connected, config_file, request_header, user_id, session_info = \
-            test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
-        write_config(appname, media_server_name, config_file)
-        return True, config_file, connected, request_header, user_id, session_info
-    else:
-        connected = True
-        request_header = "null"
-        user_id = "null"
-        session_info = "null"
-        return False, config_file, connected, request_header, user_id, session_info
+    write_config(appname, media_server_name, config_file)
+    return config_file
 
 
-def configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header):
+def configure_new_server():
     print("Searching for local media-servers...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, True)
@@ -190,21 +180,11 @@ def configure_new_server(appname, version, media_server_name, media_server, conf
         if "http" not in ipaddress:
             ipaddress = "http://{}".format(ipaddress)
         ipaddress = ipaddress.rstrip("/")
-    config_file["ipaddress"] = ipaddress
-    if config_file["use_config"]:
-        print("Do you want to connect with the following user?\n  {}-username: {}\n  (Y)es / (N)o\n: "
-              .format(media_server_name.lower(), config_file.get("user-login").get("username")), end="")
-        hungry = get_keypress("yYNn")
-        if hungry in "yY":
-            func_succ = False
-            while not func_succ:
-                func_succ, connected, request_header, user_id, session_info = \
-                    test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
-    func_succ = False
-    while not func_succ:
-        func_succ, config_file, connected, request_header, user_id, session_info = \
-            configure_new_login(appname, version, media_server_name, media_server, config_file, auth_header)
-    return config_file, connected, request_header, user_id, session_info
+    config_file = {
+        "use_config": True,
+        "ipaddress": ipaddress
+    }
+    return config_file
 
 
 def check_information(appname, version):
@@ -224,56 +204,55 @@ def check_information(appname, version):
             "Content-Type": "application/json"}
     if not os.path.isdir(user_cache_dir(appname)):
         os.makedirs(user_cache_dir(appname))
-        config_file = {
-            "use_config": False
-        }
-        config_file, connected, request_header, user_id, session_info = \
-            configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
-        head_dict = {
-            "media_server_name": media_server_name,
-            "media_server": media_server,
-            "config_file": config_file,
-            "auth_header": auth_header,
-            "request_header": request_header,
-            "user_id": user_id
-        }
+        config_file = configure_new_server()
+        config_file = configure_new_login(appname, media_server_name, config_file)
+        while not connected:
+            config_file, request_header, user_id, session_info = \
+                test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
+            if not connected:
+                ohoh = get_keypress("1Ee")
+                if ohoh == "1":
+                    config_file = configure_new_login(appname, media_server_name, config_file)
+                else:
+                    exit()
     elif not os.path.isfile("{}/{}.config.json".format(user_cache_dir(appname),
                                                        media_server_name.lower())):
-        config_file = {
-            "use_config": False
-        }
-        config_file, connected, request_header, user_id, session_info = \
-            configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
-        head_dict = {
-            "media_server_name": media_server_name,
-            "media_server": media_server,
-            "config_file": config_file,
-            "auth_header": auth_header,
-            "request_header": request_header,
-            "user_id": user_id,
-            "session_info": session_info
-        }
+        config_file = configure_new_server()
+        config_file = configure_new_login(appname, media_server_name, config_file)
+        while not connected:
+            config_file, request_header, user_id, session_info = \
+                test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
+            if not connected:
+                ohoh = get_keypress("1Ee")
+                if ohoh == "1":
+                    config_file = configure_new_login(appname, media_server_name, config_file)
+                else:
+                    exit()
     else:
         print("Configuration files found!")
         config_file = read_config(appname, media_server_name)
         if not config_file.get("use_config"):
-            config_file, connected, request_header, user_id, session_info = \
-                configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
+            config_file = configure_new_server()
+            config_file = configure_new_login(appname, media_server_name, config_file)
+            config_file, request_header, user_id, session_info = \
+                test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
         else:
-            func_succ = False
-            while not func_succ:
-                func_succ, connected, config_file,  request_header, user_id, session_info = \
+            while not connected:
+                config_file, request_header, user_id, session_info = \
                     test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
-        if not connected:
-            config_file, connected, request_header, user_id, session_info = \
-                configure_new_server(appname, version, media_server_name, media_server, config_file, auth_header)
-        head_dict = {
-            "media_server_name": media_server_name,
-            "media_server": media_server,
-            "config_file": config_file,
-            "auth_header": auth_header,
-            "request_header": request_header,
-            "user_id": user_id,
-            "session_info": session_info
-        }
+                if not connected:
+                    ohoh = get_keypress("1Ee")
+                    if ohoh == "1":
+                        config_file = configure_new_login(appname, media_server_name, config_file)
+                    else:
+                        exit()
+    head_dict = {
+        "media_server_name": media_server_name,
+        "media_server": media_server,
+        "config_file": config_file,
+        "auth_header": auth_header,
+        "request_header": request_header,
+        "user_id": user_id,
+        "session_info": session_info
+    }
     return head_dict

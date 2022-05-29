@@ -20,7 +20,7 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
     request_header = head_dict.get("request_header")
     session_info = head_dict.get("session_info")
     if use_rpc:
-        rpc.close()
+        rpc.clear()
     if eof:
         print("{}{}/Users/{}/PlayedItems/{}".format(ipaddress, media_server, user_id, item_list.get("Id")))
         mark_played = requests.post(
@@ -120,13 +120,13 @@ def update_playback(player, item_list, head_dict, playsession_id, mediasource_id
                 }
                 totalruntime = item_list.get("RunTimeTicks") / 10000000
                 if item_list.get("Type") == "Movie" and use_rpc:
-                    rpc.update(state="{}".format(item_list.get("Name"), details="{}".format(item_list.get("Type"))),
+                    rpc.update(state="Streaming: {}".format(item_list.get("Name")),
                                start=int(time.time() - player.playback_time),
                                end=int(time.time() + totalruntime - player.playback_time),
                                small_image=head_dict.get("media_server_name").lower())
                 elif item_list.get("Type") == "Episode" and use_rpc:
-                    rpc.update(state="{} - {}".format(item_list.get("SeasonName"), item_list.get("Name")),
-                               details="{}".format(item_list.get("SeriesName")),
+                    rpc.update(state="{} ({})".format(item_list.get("Name"), item_list.get("SeasonName")),
+                               details="Streaming: {} ".format(item_list.get("SeriesName")),
                                start=int(time.time() - player.playback_time),
                                end=int(time.time() + totalruntime - player.playback_time),
                                small_image=head_dict.get("media_server_name").lower())

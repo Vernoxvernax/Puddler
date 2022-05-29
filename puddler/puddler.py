@@ -6,8 +6,10 @@ from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev3"
+version = "0.3.dev4"
 appname = "Puddler"
+
+
 #
 
 
@@ -105,8 +107,9 @@ def choosing_media(head_dict):
     }
     item_list = print_json(items, False)
     try:
-        search = input("Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
-                   "display literally everything.\n: ")
+        search = input(
+            "Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
+            "display literally everything.\n: ")
     except KeyboardInterrupt:
         close_session(ipaddress, media_server, request_header)
     if search != "ALL" and not re.search("^[0-9]+$", search):
@@ -193,15 +196,19 @@ def streaming(head_dict, item_list):
                 ipaddress, media_server, user_id, y.get("Id")), headers=request_header).json()
             for z in episodes["Items"]:
                 if z in episode_list:
-                    continue
-                episode_list.append(z)
+                    if z.get("SeasonName") != "Specials":
+                        continue
+                    z["fuck"] = "me"
+                    episode_list.append(z)
+                else:
+                    episode_list.append(z)
                 if z.get("UserData").get("Played") == 0:
                     print("      [{}] {}".format(episode_list.index(z), z.get("Name")))
                 else:
                     print("      [{}] {}".format(episode_list.index(z), z.get("Name")), end="")
                     green_print(" [PLAYED]")
         try:
-            starting_pos = input("Please enter which episode you want to continue at. (number)\n: ")
+            starting_pos = input("Please enter which episode you want to continue at (number)\n: ")
         except KeyboardInterrupt:
             close_session(ipaddress, media_server, request_header)
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))

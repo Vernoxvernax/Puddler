@@ -47,6 +47,9 @@ def run_mpv(stream_url, item_list, head_dict, appname):
                          ipc_socket="/tmp/mpvsocket")
         libmpv = False
     player.fullscreen = True
+    player.title = "{} - Streaming: {}".format(appname, item_list.get("Name"))
+    player.user_agent = "{}".format(appname)
+    player.force_media_title = "{} ({})".format(item_list.get("Name"), head_dict.get("media_server_name"))
     player.play(stream_url)
     r = threading.Thread(target=collect_time)
     threads = [r]
