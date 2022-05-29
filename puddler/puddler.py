@@ -1,16 +1,13 @@
 import requests
 import re
 from .mediaserver_information import check_information
-from .mediaserver_information import get_keypress
+# from .mediaserver_information import get_keypress
 from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev4"
+version = "0.3.dev5"
 appname = "Puddler"
-
-
-#
 
 
 def green_print(text):
@@ -43,21 +40,38 @@ def choosing_media(head_dict):
         else:
             return True
 
-    def print_json(items, count):
-        item_list = []
+    def print_json(items, count=False, add_to=None, tsudukeru=None):
+        if not add_to:
+            item_list = []
+        else:
+            # For smol brains
+            item_list = add_to
         for x in items["Items"]:
             if x["Name"] not in item_list:
                 item_list.append(x)
-                if x["UserData"]["Played"] == 0:
-                    if not count:
-                        print(
-                            "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")))
+                if not x["UserData"]["Played"]:
+                    if "PlayedPercentage" in x["UserData"]:
+                        percentage = "{}%".format(int(x.get("UserData").get("PlayedPercentage")))
+                        if not count:
+                            print(
+                                "      [{}] {} - ({}) {}".format(
+                                    item_list.index(x), x.get("Name"), x.get("Type"), percentage))
+                        else:
+                            blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
+                            try:
+                                input()
+                            except KeyboardInterrupt:
+                                close_session(ipaddress, media_server, request_header)
                     else:
-                        blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
-                        try:
-                            input()
-                        except KeyboardInterrupt:
-                            close_session(ipaddress, media_server, request_header)
+                        if not count:
+                            print(
+                                "      [{}] {} - ({})".format(item_list.index(x), x.get("Name"), x.get("Type")))
+                        else:
+                            blue_print("      [{}] {} - ({})".format("Enter", x.get("Name"), x.get("Type")))
+                            try:
+                                input()
+                            except KeyboardInterrupt:
+                                close_session(ipaddress, media_server, request_header)
                 else:
                     if not count:
                         print(
@@ -100,15 +114,28 @@ def choosing_media(head_dict):
     media_server = head_dict.get("media_server")
     user_id = head_dict.get("user_id")
     request_header = head_dict.get("request_header")
-    items = requests.get("{}{}/Users/{}/Items/Latest"
-                         .format(ipaddress, media_server, user_id), headers=request_header)
-    items = {
-        "Items": items.json()
+    nextup = requests.get(
+        "{}{}/Users/{}/Items/Resume"
+            .format(ipaddress, media_server, user_id), headers=request_header)
+    if "Id" in nextup.text:
+        print("\nContinue Watching:")
+        item_list = print_json(nextup.json())
+        next_up = True
+    else:
+        next_up = False
+    latest = requests.get("{}{}/Users/{}/Items/Latest"
+                          .format(ipaddress, media_server, user_id), headers=request_header)
+    latest = {
+        "Items": latest.json()
     }
-    item_list = print_json(items, False)
+    print("\nLatest:")
+    if next_up:
+        item_list = print_json(latest, add_to=item_list)
+    else:
+        item_list = print_json(latest)
     try:
         search = input(
-            "Please choose from above, enter a search term like \"Everything Everywhere\" or type \"ALL\" to "
+            "Please choose from above, enter a search term, or type \"ALL\" to "
             "display literally everything.\n: ")
     except KeyboardInterrupt:
         close_session(ipaddress, media_server, request_header)
@@ -120,7 +147,7 @@ def choosing_media(head_dict):
             item_list = print_json(items.json(), True)
         else:
             print("Please choose from the following results: ")
-            item_list = print_json(items.json(), False)
+            item_list = print_json(items.json())
         pick = process_input(False, item_list)
     elif search == "ALL":
         items = requests.get("{}{}/Items?SearchTerm=&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
@@ -130,7 +157,7 @@ def choosing_media(head_dict):
             item_list = print_json(items.json(), True)
         else:
             print("Please choose from the following results: ")
-            item_list = print_json(items.json(), False)
+            item_list = print_json(items.json())
         pick = process_input(False, item_list)
     else:
         pick = process_input(True, item_list)
@@ -177,7 +204,7 @@ def streaming(head_dict, item_list):
     media_server_name = head_dict.get("media_server_name")
     user_id = head_dict.get("user_id")
     request_header = head_dict.get("request_header")
-    if item_list.get("Type") == "Movie":
+    if item_list.get("Type") in "Movie":
         print("Starting mpv...".format(item_list.get("Name")))
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
             ipaddress, media_server, item_list.get("Id"), request_header.get("X-{}-Token".format(media_server_name))))
@@ -219,6 +246,28 @@ def streaming(head_dict, item_list):
             print("Are you stupid?!")
             exit()
         playlist(starting_pos)
+    elif item_list.get("Type") in "Episode Special":
+        series = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
+            ipaddress, media_server, user_id, item_list.get("SeriesId")), headers=request_header).json()
+        season_list = []
+        for x in series["Items"]:
+            season_list.append(x)
+        episode_list = []
+        for y in season_list:
+            episodes = requests.get("{}{}/Users/{}/Items?ParentId={}".format(
+                ipaddress, media_server, user_id, y.get("Id")), headers=request_header).json()
+            for z in episodes["Items"]:
+                if z in episode_list:
+                    if z.get("SeasonName") != "Specials":
+                        continue
+                    z["fuck"] = "me"
+                    episode_list.append(z)
+                else:
+                    episode_list.append(z)
+        starting_pos = episode_list.index(item_list)
+        playlist(starting_pos)
+    else:
+        print("The object type you've chosen is invalid.\nPlease report this on github.")
     green_print("All playback has finished.\nPress [Enter] to search for something else.")
     try:
         input()

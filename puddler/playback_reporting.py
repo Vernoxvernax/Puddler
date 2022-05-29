@@ -1,13 +1,19 @@
+from .mediaserver_information import get_keypress
 import pypresence
 import time
 import re
 import requests
 
+
 # Puddler discord application
+global use_rpc, rpc
 try:
     rpc = pypresence.Presence("980093587314343957")
     rpc.connect()
     use_rpc = True
+    print("Do you want to activate Discord-Presence?\n (Y)es / (N)o\n: ", end="")
+    if get_keypress("yYNn") in "Nn":
+        use_rpc = False
 except pypresence.exceptions.DiscordNotFound:
     use_rpc = False
     print("Discord-Presence is not available.")

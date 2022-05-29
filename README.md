@@ -20,13 +20,7 @@ $ python -m puddler
 ```
 
 **Latest update:**
-+ reinstated printing specials within normal season, if your media server thinks it belongs there
-+ `mediaserver_information.py` spaghetti code a little bit improved
-+ optimized discord presence (slightly)
-+ finally took the time to read the mpv manual -> window bar and title bar finally feature the correct information
-+ fixed a few more small bugs
-
-###### Note: I swallowed my pride and created a comment. epic
++ (next up / resume)-items are now printed in the menu (with a little percentage sign)
 
 ___
 
@@ -42,7 +36,6 @@ ___
 
 To-Do list:
 
-+ up next (or whatever its called)
 + think of other useful features that require **0** effort to implement
 
 ---
