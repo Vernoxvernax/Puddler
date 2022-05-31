@@ -4,7 +4,6 @@ import time
 import re
 import requests
 
-
 # Puddler discord application
 global use_rpc, rpc
 try:
@@ -14,7 +13,7 @@ try:
     print("Do you want to activate Discord-Presence?\n (Y)es / (N)o\n: ", end="")
     if get_keypress("yYNn") in "Nn":
         use_rpc = False
-except pypresence.exceptions.DiscordNotFound:
+except:  # To allow error handling if you are running discord with root and this script not.
     use_rpc = False
     print("Discord-Presence is not available.")
 
@@ -22,9 +21,9 @@ except pypresence.exceptions.DiscordNotFound:
 def report_playback(item_list, head_dict, ending_playback=None, eof=None):
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
-    user_id = head_dict.get("user_id")
+    user_id = head_dict.get("config_file").get("app_auth").get("user_id")
     request_header = head_dict.get("request_header")
-    session_info = head_dict.get("session_info")
+    session_id = head_dict.get("session_id")
     if use_rpc:
         rpc.clear()
     if eof:
@@ -47,7 +46,7 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
             progress = {
                 "ItemId": item_list.get("Id"),
                 "PlaySessionId": playback_info.get("PlaySessionId"),
-                "SessionId": session_info.get("Id"),
+                "SessionId": session_id,
                 "MediaSourceId": playback_info.get("MediaSources")[0].get("Id"),
                 "PositionTicks": int(ending_playback * 10000000)
             }
@@ -77,9 +76,9 @@ def started_playing(item_list, head_dict, appname, starttime):
     global playback_info  # this line doesnt exist
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
-    user_id = head_dict.get("user_id")
+    user_id = head_dict.get("config_file").get("app_auth").get("user_id")
     request_header = head_dict.get("request_header")
-    session_info = head_dict.get("session_info")
+    session_id = head_dict.get("session_id")
     playback_info = requests.get(
         "{}{}/Items/{}/PlaybackInfo?UserId={}".format(
             ipaddress, media_server, item_list.get("Id"), user_id), headers=request_header)
@@ -91,7 +90,7 @@ def started_playing(item_list, head_dict, appname, starttime):
         "CanSeek": True,
         "ItemId": item_list.get("Id"),
         "PlaySessionId": playback_info.get("PlaySessionId"),
-        "SessionId": session_info.get("Id"),
+        "SessionId": session_id,
         "MediaSourceId": playback_info.get("MediaSources")[0].get("Id"),
         "IsPaused": False,
         "IsMuted": False,
@@ -115,7 +114,7 @@ def update_playback(player, item_list, head_dict, playsession_id, mediasource_id
                     "CanSeek": True,
                     "ItemId": item_list.get("Id"),
                     "PlaySessionId": playsession_id,
-                    "SessionId": head_dict.get("session_info").get("Id"),
+                    "SessionId": head_dict.get("session_id"),
                     "MediaSourceId": mediasource_id,
                     "IsPaused": player.pause,
                     "IsMuted": player.mute,

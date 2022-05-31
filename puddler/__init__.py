@@ -1,3 +1,4 @@
+#!/usr/bin/env Python
 # puddler
 import puddler.puddler
 import puddler.mediaserver_information

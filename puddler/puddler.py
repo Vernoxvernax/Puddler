@@ -6,7 +6,7 @@ from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev5"
+version = "0.3.dev6"
 appname = "Puddler"
 
 
@@ -23,8 +23,8 @@ def red_print(text):
 
 
 def close_session(ipaddress, media_server, request_header):
-    requests.post("{}{}/Sessions/Logout".format(
-        ipaddress, media_server), headers=request_header)
+    # requests.post("{}{}/Sessions/Logout".format(
+    #     ipaddress, media_server), headers=request_header)
     if use_rpc:
         rpc.close()
     exit()
@@ -40,7 +40,7 @@ def choosing_media(head_dict):
         else:
             return True
 
-    def print_json(items, count=False, add_to=None, tsudukeru=None):
+    def print_json(items, count=False, add_to=None):
         if not add_to:
             item_list = []
         else:
@@ -112,7 +112,7 @@ def choosing_media(head_dict):
 
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
-    user_id = head_dict.get("user_id")
+    user_id = head_dict.get("config_file").get("app_auth").get("user_id")
     request_header = head_dict.get("request_header")
     nextup = requests.get(
         "{}{}/Users/{}/Items/Resume"
@@ -196,18 +196,18 @@ def streaming(head_dict, item_list):
             stream_url = (
                 "{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
                     ipaddress, media_server, episode_list[starting_pos].get("Id"),
-                    request_header.get("X-{}-Token".format(media_server_name))))
+                    request_header.get("X-Emby-Token")))
             run_mpv(stream_url, episode_list[starting_pos], head_dict, appname)
 
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")
     media_server_name = head_dict.get("media_server_name")
-    user_id = head_dict.get("user_id")
+    user_id = head_dict.get("config_file").get("app_auth").get("user_id")
     request_header = head_dict.get("request_header")
     if item_list.get("Type") in "Movie":
         print("Starting mpv...".format(item_list.get("Name")))
         stream_url = ("{}{}/Videos/{}/stream?Container=mkv&Static=true&SubtitleMethod=External&api_key={}".format(
-            ipaddress, media_server, item_list.get("Id"), request_header.get("X-{}-Token".format(media_server_name))))
+            ipaddress, media_server, item_list.get("Id"), request_header.get("X-Emby-Token")))
         run_mpv(stream_url, item_list, head_dict, appname)
     elif item_list.get("Type") == "Series":
         print("{}:".format(item_list.get("Name")))

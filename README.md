@@ -20,7 +20,16 @@ $ python -m puddler
 ```
 
 **Latest update:**
-+ (next up / resume)-items are now printed in the menu (with a little percentage sign)
++ rewrote auth
+  + script isn't going to authenticate each time, only when you've been logged out
+  + device id has been set to "Puddler" (here come the duplicate device entries)
++ remove debug parameter lol
+
+##### The auth thingy has been *written* in like 1 hour, don't expect it to run perfectly.
+
+Also:
+
+I will add the `setup.py` later on and figure out how to put puddler in path, so please stand by and install via pip.
 
 ___
 
