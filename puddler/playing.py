@@ -56,7 +56,7 @@ def run_mpv(stream_url, item_list, head_dict, appname):
     if libmpv:
         player.wait_until_playing()
         player.seek(item_list.get("UserData").get("PlaybackPositionTicks") / 10000000)
-        playsession_id, mediasource_id = started_playing(item_list, head_dict, appname, player.playback_time)
+        playsession_id, mediasource_id = started_playing(item_list, head_dict)
         s = threading.Thread(target=update_playback,
                              args=(player, item_list, head_dict, playsession_id, mediasource_id))
         threads.append(s)
@@ -66,7 +66,7 @@ def run_mpv(stream_url, item_list, head_dict, appname):
     else:
         player.wait_for_property("duration")
         player.seek(item_list.get("UserData").get("PlaybackPositionTicks") / 10000000)
-        playsession_id, mediasource_id = started_playing(item_list, head_dict, appname, player.playback_time)
+        playsession_id, mediasource_id = started_playing(item_list, head_dict)
         s = threading.Thread(target=update_playback,
                              args=(player, item_list, head_dict, playsession_id, mediasource_id))
         threads.append(s)

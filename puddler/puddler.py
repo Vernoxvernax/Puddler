@@ -1,12 +1,9 @@
-import requests
-import re
 from .mediaserver_information import check_information
-# from .mediaserver_information import get_keypress
 from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev6"
+version = "0.3.dev7"
 appname = "Puddler"
 
 
@@ -22,9 +19,7 @@ def red_print(text):
     print("\033[91m{}\033[00m".format(text))
 
 
-def close_session(ipaddress, media_server, request_header):
-    # requests.post("{}{}/Sessions/Logout".format(
-    #     ipaddress, media_server), headers=request_header)
+def close_session():
     if use_rpc:
         rpc.close()
     exit()
@@ -61,7 +56,7 @@ def choosing_media(head_dict):
                             try:
                                 input()
                             except KeyboardInterrupt:
-                                close_session(ipaddress, media_server, request_header)
+                                close_session()
                     else:
                         if not count:
                             print(
@@ -71,7 +66,7 @@ def choosing_media(head_dict):
                             try:
                                 input()
                             except KeyboardInterrupt:
-                                close_session(ipaddress, media_server, request_header)
+                                close_session()
                 else:
                     if not count:
                         print(
@@ -82,7 +77,7 @@ def choosing_media(head_dict):
                         try:
                             input()
                         except KeyboardInterrupt:
-                            close_session(ipaddress, media_server, request_header)
+                            close_session()
         return item_list
 
     def process_input(already_asked, item_list):
@@ -91,7 +86,7 @@ def choosing_media(head_dict):
                 try:
                     raw_pick = input(": ")
                 except KeyboardInterrupt:
-                    close_session(ipaddress, media_server, request_header)
+                    close_session()
             else:
                 raw_pick = search
             pick = int(re.sub("[^0-9]", "", raw_pick))
@@ -138,7 +133,7 @@ def choosing_media(head_dict):
             "Please choose from above, enter a search term, or type \"ALL\" to "
             "display literally everything.\n: ")
     except KeyboardInterrupt:
-        close_session(ipaddress, media_server, request_header)
+        close_session()
     if search != "ALL" and not re.search("^[0-9]+$", search):
         items = requests.get("{}{}/Items?SearchTerm={}&UserId={}&Recursive=true&IncludeItemTypes=Series,Movie"
                              .format(ipaddress, media_server, search, user_id), headers=request_header)
@@ -179,7 +174,10 @@ def streaming(head_dict, item_list):
                 return
             try:
                 green_print("\nWelcome back. Do you want to continue playback with:")
-                blue_print("   {}".format(episode_list[starting_pos].get("Name")))
+                blue_print("   {} - {} - {}"
+                           .format(episode_list[starting_pos].get("SeriesName"),
+                                   episode_list[starting_pos].get("SeasonName"),
+                                   episode_list[starting_pos].get("Name")))
                 print(" (Y)es | (N)o | (E)xit\n: ", end="")
                 what = get_keypress("YyNnEe")
                 if what in "Yy":
@@ -188,9 +186,9 @@ def streaming(head_dict, item_list):
                     next_ep = False
                     return
                 elif what in "Ee":
-                    close_session(ipaddress, media_server, request_header)
+                    close_session()
             except KeyboardInterrupt:
-                close_session(ipaddress, media_server, request_header)
+                close_session()
             print("Starting playback of:")
             blue_print("  {}".format(episode_list[starting_pos].get("Name")))
             stream_url = (
@@ -237,7 +235,7 @@ def streaming(head_dict, item_list):
         try:
             starting_pos = input("Please enter which episode you want to continue at (number)\n: ")
         except KeyboardInterrupt:
-            close_session(ipaddress, media_server, request_header)
+            close_session()
         starting_pos = int(re.sub("[^0-9]", "", starting_pos))
         if starting_pos < (len(episode_list) + 1) and not starting_pos < 0:
             print("\nYou've chosen ", end="")
@@ -272,7 +270,7 @@ def streaming(head_dict, item_list):
     try:
         input()
     except KeyboardInterrupt:
-        close_session(ipaddress, media_server, request_header)
+        close_session()
     item_list = choosing_media(head_dict)
     streaming(head_dict, item_list)
 

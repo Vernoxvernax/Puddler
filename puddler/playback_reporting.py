@@ -72,7 +72,7 @@ def report_playback(item_list, head_dict, ending_playback=None, eof=None):
     print("Waiting for all threads to finish...")
 
 
-def started_playing(item_list, head_dict, appname, starttime):
+def started_playing(item_list, head_dict):
     global playback_info  # this line doesnt exist
     ipaddress = head_dict.get("config_file").get("ipaddress")
     media_server = head_dict.get("media_server")

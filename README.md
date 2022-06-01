@@ -20,16 +20,10 @@ $ python -m puddler
 ```
 
 **Latest update:**
-+ rewrote auth
-  + script isn't going to authenticate each time, only when you've been logged out
-  + device id has been set to "Puddler" (here come the duplicate device entries)
-+ remove debug parameter lol
++ fixed a few things from yesterday's auth update
++ clarified output in series mode (do you want to play this next? {series-name} {season-name} {ep-name})
 
-##### The auth thingy has been *written* in like 1 hour, don't expect it to run perfectly.
-
-Also:
-
-I will add the `setup.py` later on and figure out how to put puddler in path, so please stand by and install via pip.
+#### I also decided to abandon the puddler to path thing, since that can't be configured in setup.py (as far as I know).
 
 ___
 
@@ -45,6 +39,6 @@ ___
 
 To-Do list:
 
-+ think of other useful features that require **0** effort to implement
++ think of other *useful* features that require **0** effort to implement
 
 ---

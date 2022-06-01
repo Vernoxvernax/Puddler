@@ -80,7 +80,6 @@ def read_config(appname, media_server_name):
 
 
 def write_config(appname, media_server_name, config_file):
-    print("Writing config file.")
     if media_server_name == "Jellyfin":
         username = json.loads(config_file.get("user_login").decode("utf-8")).get("username")
         password = json.loads(config_file.get("user_login").decode("utf-8")).get("pw")
@@ -102,6 +101,7 @@ def write_config(appname, media_server_name, config_file):
             "user_id": user_id
         }
         json.dump(stuff, output)
+    print("Saved to config file...")
 
 
 def test_auth(appname, version, media_server_name, media_server, config_file, auth_header):
@@ -223,14 +223,14 @@ def check_information(appname, version):
     if media_server == "1":
         media_server = "/emby"
         media_server_name = "Emby"
-        auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="lol", '
-                                        'Version="{}", Token="L"'.format(appname, version)}
+        auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="{}", '
+                                        'Version="{}", Token="L"'.format(appname, appname, version)}
     else:
         media_server = ""
         media_server_name = "Jellyfin"
         auth_header = {
-            "X-Emby-Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="lol", '
-                                    'Version="{}", Token="L"'.format(appname, version),
+            "X-Emby-Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="{}", '
+                                    'Version="{}", Token="L"'.format(appname, appname, version),
             "Content-Type": "application/json"}
     if not os.path.isdir(user_cache_dir(appname)):
         os.makedirs(user_cache_dir(appname))
@@ -245,6 +245,8 @@ def check_information(appname, version):
                     config_file = configure_new_login(media_server_name, config_file)
                 else:
                     exit()
+            else:
+                write_config(appname, media_server_name, config_file)
     elif not os.path.isfile("{}/{}.config.json".format(user_cache_dir(appname),
                                                        media_server_name.lower())):
         config_file = configure_new_server()
@@ -258,6 +260,8 @@ def check_information(appname, version):
                     config_file = configure_new_login(media_server_name, config_file)
                 else:
                     exit()
+            else:
+                write_config(appname, media_server_name, config_file)
     else:
         print("Configuration files found!")
         config_file = read_config(appname, media_server_name)
@@ -297,9 +301,6 @@ def check_information(appname, version):
             config_file, request_header, auth_header, session_id = \
                 test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
             write_config(appname, media_server_name, config_file)
-            session_id = requests.get("{}{}/Sessions?DeviceId={}"
-                                      .format(config_file.get("ipaddress"), media_server, appname),
-                                      headers=auth_header).json()[0].get("PlayState").get("Id")
         finally:
             green_print("Connection successfully reestablished!")
             connected = True
