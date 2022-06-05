@@ -20,10 +20,9 @@ $ python -m puddler
 ```
 
 **Latest update:**
-+ fixed a few things from yesterday's auth update
-+ clarified output in series mode (do you want to play this next? {series-name} {season-name} {ep-name})
++ fixed a small bug, which led to the script crashing when changing settings on existing configuration
 
-#### I also decided to abandon the puddler to path thing, since that can't be configured in setup.py (as far as I know).
+#### On the subject of *puddler in path*: I might have found a solution. Stay tuned.
 
 ___
 

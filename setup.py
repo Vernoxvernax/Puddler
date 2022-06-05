@@ -14,7 +14,7 @@ if system() == "Linux":
 
 setup(
     name='Puddler',
-    version='0.3.dev7',
+    version='0.3.dev8',
     packages=['puddler'],
     license='GNU General Public License v3.0',
     url="https://github.com/Vernoxvernax/Puddler",

@@ -268,9 +268,17 @@ def check_information(appname, version):
         if not config_file.get("use_config"):
             config_file = configure_new_server()
             config_file = configure_new_login(media_server_name, config_file)
-            config_file, request_header, auth_header, session_id = \
-                test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
-            write_config(appname, media_server_name, config_file)
+            while not connected:
+                config_file, request_header, auth_header, session_id = \
+                    test_auth(appname, version, media_server_name, media_server, config_file, auth_header)
+                if not connected:
+                    ohoh = get_keypress("1Ee")
+                    if ohoh == "1":
+                        config_file = configure_new_login(media_server_name, config_file)
+                    else:
+                        exit()
+                else:
+                    write_config(appname, media_server_name, config_file)
         else:
             if media_server_name == "Emby":
                 auth_header = {
