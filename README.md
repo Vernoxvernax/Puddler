@@ -19,7 +19,7 @@ $ python -m pip install Puddler --upgrade
 $ python -m puddler
 ```
 
-**IMPORTANT NOTICE:**
+### **IMPORTANT NOTICE:**
 Don't update your jellyfin-server to 10.8.0 unless you want puddler to stop working.
 This problem is obviously temporary, but will take me until tomorrow to fix.
 
