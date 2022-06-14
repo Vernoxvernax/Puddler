@@ -1,6 +1,7 @@
 # This part of puddler asks the user for their account details, emby/jellyfin address and writes the config files.
 # returns (hopefully) a dictionary containing: ip_address, user_id, a request_header (with token...) and if emby or jf
 import os.path
+import uuid
 import requests
 import json
 import socket
@@ -40,17 +41,21 @@ def get_keypress(allowed):
 def read_config(appname, media_server_name):
     with open("{}/{}.config.json".format(user_cache_dir(appname),
                                          media_server_name.lower()), "r") as config:
-        data = json.load(config)
         try:
+            data = json.load(config)
             ipaddress = data["server"]
             username = data["username"]
             password = data["password"]
             access_key = data["access_key"]
             user_id = data["user_id"]
+            device_id = data["device_id"]
         except:
             print("Couldn't read the existing config file.")
             config_file = {
-                "use_config": False
+                "use_config": False,
+                "app_auth": {
+                    "device_id": str(uuid.uuid4())
+                }
             }
             return config_file
         print("Do you want to use this config?\n"
@@ -69,12 +74,16 @@ def read_config(appname, media_server_name):
                 "app_auth": {
                     "access_key": access_key,
                     "user_id": user_id,
+                    "device_id": device_id
                 }
             }
             return config_file
         else:
             config_file = {
-                "use_config": False
+                "use_config": False,
+                "app_auth": {
+                    "device_id": str(uuid.uuid4())
+                }
             }
             return config_file
 
@@ -85,11 +94,13 @@ def write_config(appname, media_server_name, config_file):
         password = json.loads(config_file.get("user_login").decode("utf-8")).get("pw")
         access_key = config_file.get("app_auth").get("access_key")
         user_id = config_file.get("app_auth").get("user_id")
+        device_id = config_file.get("app_auth").get("device_id")
     else:
         username = config_file.get("user_login").get("username")
         password = config_file.get("user_login").get("pw")
         access_key = config_file.get("app_auth").get("access_key")
         user_id = config_file.get("app_auth").get("user_id")
+        device_id = config_file.get("app_auth").get("device_id")
     ipaddress = config_file.get("ipaddress")
     with open("{}/{}.config.json".format(user_cache_dir(appname),
                                          media_server_name.lower()), "w") as output:
@@ -98,7 +109,8 @@ def write_config(appname, media_server_name, config_file):
             "password": password,
             "server": ipaddress,
             "access_key": access_key,
-            "user_id": user_id
+            "user_id": user_id,
+            "device_id": device_id
         }
         json.dump(stuff, output)
     print("Saved to config file...")
@@ -123,8 +135,8 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
             auth_header = {
                 "Authorization": 'Emby UserId="{}", Client="Emby Theater", Device="{}", DeviceId="{}", '
                                  'Version="{}", Token="{}"'
-                    .format(authorization.json().get("SessionInfo").get("UserId"), appname, appname, version,
-                            authorization.json().get("AccessToken"))}
+                    .format(authorization.json().get("SessionInfo").get("UserId"), appname, config_file.get("app_auth")
+                            .get("device_id"), version, authorization.json().get("AccessToken"))}
         else:
             request_header = {
                 "X-Application": "{}/{}".format(appname, version),
@@ -133,12 +145,13 @@ def test_auth(appname, version, media_server_name, media_server, config_file, au
             auth_header = {
                 "X-Emby-Authorization": 'Emby UserId="{}", Client="Emby Theater", Device="{}", DeviceId="{}", '
                                         'Version="{}", Token="{}"'
-                    .format(authorization.json().get("SessionInfo").get("UserId"), appname, appname, version,
-                            authorization.json().get("AccessToken")),
+                    .format(authorization.json().get("SessionInfo").get("UserId"), appname, config_file.get("app_auth")
+                            .get("device_id"), version, authorization.json().get("AccessToken")),
                 "Content-Type": "application/json"}
         config_file["app_auth"] = {
             "user_id": authorization.json().get("User").get("Id"),
-            "access_key": authorization.json().get("AccessToken")
+            "access_key": authorization.json().get("AccessToken"),
+            "device_id": config_file.get("app_auth").get("device_id")
         }
         session_id = authorization.json().get("SessionInfo").get("Id")
         connected = True
@@ -170,12 +183,13 @@ def configure_new_login(media_server_name, config_file):
         "pw": password
     }
     config_file["app_auth"] = {
-        "user_id"
+        "user_id": "",
+        "device_id": config_file.get("app_auth").get("device_id")
     }
     return config_file
 
 
-def configure_new_server():
+def configure_new_server(config_file):
     print("Searching for local media-servers...")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, True)
@@ -211,7 +225,10 @@ def configure_new_server():
         ipaddress = ipaddress.rstrip("/")
     config_file = {
         "use_config": True,
-        "ipaddress": ipaddress
+        "ipaddress": ipaddress,
+        "app_auth": {
+            "device_id": config_file.get("app_auth").get("device_id")
+        }
     }
     return config_file
 
@@ -220,21 +237,27 @@ def check_information(appname, version):
     global connected
     print("What kind of server do you want to stream from?\n [1] Emby\n [2] Jellyfin\n: ", end="")
     media_server = get_keypress("12")
+    new_uuid = str(uuid.uuid4())
+    config_file = {
+        "app_auth": {
+            "device_id": new_uuid
+        }
+    }
     if media_server == "1":
         media_server = "/emby"
         media_server_name = "Emby"
         auth_header = {"Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="{}", '
-                                        'Version="{}", Token="L"'.format(appname, appname, version)}
+                                        'Version="{}", Token="L"'.format(appname, new_uuid, version)}
     else:
         media_server = ""
         media_server_name = "Jellyfin"
         auth_header = {
             "X-Emby-Authorization": 'Emby UserId="", Client="Emby Theater", Device="{}", DeviceId="{}", '
-                                    'Version="{}", Token="L"'.format(appname, appname, version),
+                                    'Version="{}", Token="L"'.format(appname, new_uuid, version),
             "Content-Type": "application/json"}
     if not os.path.isdir(user_cache_dir(appname)):
         os.makedirs(user_cache_dir(appname))
-        config_file = configure_new_server()
+        config_file = configure_new_server(config_file)
         config_file = configure_new_login(media_server_name, config_file)
         while not connected:
             config_file, request_header, auth_header, session_id = \
@@ -249,7 +272,7 @@ def check_information(appname, version):
                 write_config(appname, media_server_name, config_file)
     elif not os.path.isfile("{}/{}.config.json".format(user_cache_dir(appname),
                                                        media_server_name.lower())):
-        config_file = configure_new_server()
+        config_file = configure_new_server(config_file)
         config_file = configure_new_login(media_server_name, config_file)
         while not connected:
             config_file, request_header, auth_header, session_id = \
@@ -266,7 +289,7 @@ def check_information(appname, version):
         print("Configuration files found!")
         config_file = read_config(appname, media_server_name)
         if not config_file.get("use_config"):
-            config_file = configure_new_server()
+            config_file = configure_new_server(config_file)
             config_file = configure_new_login(media_server_name, config_file)
             while not connected:
                 config_file, request_header, auth_header, session_id = \
@@ -284,15 +307,15 @@ def check_information(appname, version):
                 auth_header = {
                     "Authorization": 'Emby UserId="{}", Client="Emby Theater", Device="{}", DeviceId="{}", '
                                      'Version="{}", Token="{}"'
-                        .format(config_file.get("app_auth").get("user_id"), appname, appname, version,
-                                config_file.get("app_auth").get("access_key"))
+                        .format(config_file.get("app_auth").get("user_id"), appname, config_file.get("app_auth")
+                                .get("device_id"), version, config_file.get("app_auth").get("access_key"))
                 }
             else:
                 auth_header = {
                     "X-Emby-Authorization": 'Emby UserId="{}", Client="Emby Theater", Device="{}", DeviceId="{}", '
                                             'Version="{}", Token="{}"'
-                        .format(config_file.get("app_auth").get("user_id"), appname, appname, version,
-                                config_file.get("app_auth").get("access_key")),
+                        .format(config_file.get("app_auth").get("user_id"), appname, config_file.get("app_auth")
+                                .get("device_id"), version, config_file.get("app_auth").get("access_key")),
                     "Content-Type": "application/json"}
             request_header = {
                 "X-Application": "{}/{}".format(appname, version),
@@ -302,8 +325,8 @@ def check_information(appname, version):
         print("Testing {} connection ...".format(media_server_name))
         try:
             session_id = requests.get("{}{}/Sessions?DeviceId={}"
-                                      .format(config_file.get("ipaddress"), media_server, appname),
-                                      headers=auth_header).json()[0].get("PlayState").get("Id")
+                                      .format(config_file.get("ipaddress"), media_server, config_file.get("app_auth")
+                                .get("device_id")), headers=auth_header).json()[0].get("PlayState").get("Id")
         except requests.exceptions.JSONDecodeError:
             print("Something failed, re-authenticating...")
             config_file, request_header, auth_header, session_id = \

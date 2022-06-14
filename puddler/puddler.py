@@ -3,7 +3,7 @@ from .playback_reporting import *
 
 # Some mildly important variables #
 global version
-version = "0.3.dev8"
+version = "0.3.dev9"
 appname = "Puddler"
 
 
