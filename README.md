@@ -1,4 +1,13 @@
 # Puddler (Emby/Jellyfin-MPV-CLI)
+
+___
+
+## The solution for the *puddler in path* problem:
+## I *learned* rust and rewrote the whole program with the most based language (rust).
+## **[Puddler-RS](https://github.com/Vernoxvernax/Puddler-RS)**
+
+___
+
 Emby/Jellyfin command line client, powered by mpv.
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?style=flat)](https://www.python.org/)
